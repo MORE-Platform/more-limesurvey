@@ -7,8 +7,12 @@ For authentication in MORE we use SSO based on OAuth with Keycloak.
 With the plugin https://github.com/BDSU/limesurvey-oauth2, we can use our account we use for the
 MORE studymanager to sign into Limesurvey.
 
-The plugin is installed in limesurvey under
-`Configuration > Settings > Plugins > Upload & install` (manually for now) and needs to be configured:
+The OAuth-plugin is shipped within this docker-image, but needs to be "loaded" before it can be
+enabled and configured.
+Go to `Configuration > Settings > Plugins`, press the `Scan files`-Button and select the
+`AuthOAuth2`-Plugin.
+
+Then continue with the configuration of the plugin:
 
 - Client ID: `limesurvey`
 - Client Secret can be found in the limesurvey client on Keycloak
@@ -24,6 +28,8 @@ The plugin is installed in limesurvey under
 You can set global roles for new users. Roles can be created as administrator under
 `Configuration > Users > User roles > Add user role`. Once a new role is created,
 it can be added as a global role for new users.
+
+Finally, enable the plugin in the Overview.
 
 ## Limesurvey API (Remote Control)
 
