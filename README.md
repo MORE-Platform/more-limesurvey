@@ -1,11 +1,19 @@
 # MORE Limesurvey
 MORE-Specific Repackaging of Limesurvey
 
+---
+## Development
+
+This repository contains a `docker-compose.yaml` to launch Limesurvey locally for development and testing.
+
+After starting the Compose using `docker compose up -d`, Limesurvey is available at http://localhost:8080.
+To access the configuration backend, login via http://localhost:8080/index.php/admin/authentication/sa/login.
+
 ## Authentication 
 
 For authentication in MORE we use SSO based on OAuth with Keycloak.
 With the plugin https://github.com/BDSU/limesurvey-oauth2, we can use our account we use for the
-MORE studymanager to sign into Limesurvey.
+MORE Study-Manager to sign in to Limesurvey.
 
 The OAuth-plugin is shipped within this docker-image, but needs to be "loaded" before it can be
 enabled and configured.
@@ -31,12 +39,15 @@ it can be added as a global role for new users.
 
 Finally, enable the plugin in the Overview.
 
+**NOTE**: Even if you enable OAuth2 as the _default login_ mechanism, you can always switch to the default
+(local database) login by directly going to `${BASE_URL}/index.php/admin/authentication/sa/login/authMethod/Authdb`. 
+
 ## Limesurvey API (Remote Control)
 
 Limesurvey uses JSON-RPC. This has to be enabled first before it can be used in
 `Configuration > Settings > Global > Interfaces` as such:
 
-<img width="422" alt="image" src="https://user-images.githubusercontent.com/73277803/217238637-d8830d9f-791e-41f3-bad8-2e1d17246c64.png">
+<img width="422" alt="JSON-RPC Configuration" src="doc/img/json-rpc.png">
 
 To use the API, you first need to get a session key. Only then you can use it. The most important
 requests for us are:

@@ -1,0 +1,41 @@
+name: more-limesurvey
+
+services:
+  limesurvey:
+    image: ghcr.io/more-platform/limesurvey:develop
+    build:
+      context: .
+    ports:
+      - '8080:8080'
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -sfI -m5 http://localhost:8080 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    environment:
+      DB_TYPE: pgsql
+      DB_PORT: 5432
+      DB_HOST: database
+      DB_PASSWORD: lime
+      DB_NAME: lime
+      DB_USERNAME: lime
+      ADMIN_NAME: Super-Admin
+      ADMIN_USER: admin
+      # Initial Password, will be changed on setup
+      ADMIN_PASSWORD: admin
+
+  database:
+    image: postgres:14-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 1s
+      retries: 5
+    environment:
+      POSTGRES_USER: lime
+      POSTGRES_DB: lime
+      POSTGRES_PASSWORD: lime
