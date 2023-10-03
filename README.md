@@ -61,6 +61,22 @@ requests for us are:
 - list_surveys (lists all surveys belonging to a user)
 - delete_survey
 
+## Global Survey Settings
+
+We must modify the default settings in LimeSurvey and ensure that these feature are activated within the Global Survey Settings:
+
+- under the Presentation section turn on Automatically load end URL when survey complete:
+
+  `Configuration > Settings > Global survey > Presentation`
+
+  <img width="600" alt="JSON-RPC Configuration" src="doc/img/automatically-load-end-URL-lime-survey.png">
+
+- under the Participant settings trun on Allow multiple responses or update responses with one access code:
+
+  `Configuration > Settings > Global survey > Participant settings`
+
+  <img width="600" alt="JSON-RPC Configuration" src="doc/img/allow-multiple-responses-lime-survey.png">
+
 ## Answering a questionnaire
 
 To answer a questionnaire, a user needs an access token and the url of the survey. They can then
