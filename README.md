@@ -61,6 +61,33 @@ requests for us are:
 - list_surveys (lists all surveys belonging to a user)
 - delete_survey
 
+## Global Survey Settings
+
+We must modify the default settings in LimeSurvey and ensure that these feature are activated within the Global Survey Settings:
+
+- under the Presentation section turn on Automatically load end URL when survey complete:
+
+  `Configuration > Settings > Global survey > Presentation`
+
+  <img width="600" alt="JSON-RPC Configuration" src="doc/img/automatically-load-end-URL-lime-survey.png">
+
+- under the Participant settings trun on Allow multiple responses or update responses with one access code:
+
+  `Configuration > Settings > Global survey > Participant settings`
+
+  <img width="600" alt="JSON-RPC Configuration" src="doc/img/allow-multiple-responses-lime-survey.png">
+
+## Set permissions for a single survey
+
+These permissions only apply for a single survey. If you want to set permissions for the whole system, you can use global permissions. These permissions can be offered either to a single user or to a user group.
+
+To change the survey permissions, click the Settings tab. Then, click Survey permissions and choose to whom would you like to offer permissions. The permissions can be offered either separately to specific users or to a user group.
+
+By default, an user (non-admin) cannot grant survey permissions to users that are not part of the same group as the survey administrator. This is a security option enabled by default in LimeSurvey. To change this, you need to deactivate option Group member can only see own group, located in the Global settings, under the Security tab. However, if you feel unsure about disabling this option, you can create groups containing those users that can be seen and be granted survey permissions by a survey creator.
+
+Check the following link for further information:
+https://manual.limesurvey.org/Manage_users#Set_permissions_for_a_single_survey
+
 ## Answering a questionnaire
 
 To answer a questionnaire, a user needs an access token and the url of the survey. They can then
