@@ -1,4 +1,4 @@
-FROM docker.io/martialblog/limesurvey:5-apache
+FROM docker.io/martialblog/limesurvey:6-apache
 
 USER root
 RUN apt-get update && apt-get install -y \
