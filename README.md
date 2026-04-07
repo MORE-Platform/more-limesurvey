@@ -77,6 +77,12 @@ We must modify the default settings in LimeSurvey and ensure that these feature 
 
   <img width="600" alt="JSON-RPC Configuration" src="doc/img/allow-multiple-responses-lime-survey.png">
 
+- under the "Notifications & Data" section you must enable "Date stamp" to store the date-timestamp
+
+  _Configuration > Settings > Global survey > Notifications & Data_
+
+  <img width="600" src="doc/img/date-stamp-lime-survey-setting.png">
+
 ## Set permissions for a single survey
 
 These permissions only apply for a single survey. If you want to set permissions for the whole system, you can use global permissions. These permissions can be offered either to a single user or to a user group.
