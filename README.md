@@ -79,9 +79,85 @@ We must modify the default settings in LimeSurvey and ensure that these feature 
 
 - under the "Notifications & Data" section you must enable "Date stamp" to store the date-timestamp
 
-  _Configuration > Settings > Global survey > Notifications & Data_
+  `Configuration > Settings > Global survey > Notifications & Data`
 
   <img width="600" src="doc/img/date-stamp-lime-survey-setting.png">
+
+- activate time stamps for questionnaires (if this is not activated it will send a incorrect dummy timestamp, that the more studymanager will filter out)
+
+  `Configuration > Global Survey > Notification & Data > Date stamp`
+ 
+ <img width="600" src="doc/img/lime-survey_datastamp.jpg">
+
+
+## Activate Build In Auditlog
+
+The Buildin Auditlog provided by Limesurvey is tracking actions performed on the admin interface only. Nevertheless, it is a good starting point. Data tracked by this Plugin can be accessed via terminal later on.
+
+- Activate the Auditlog Plugin
+  
+  `Configuration > Plugins > Auditlog (activate via button)`
+
+ <img width="600" src="doc/img/lime-survey_activate-build-in-auditlog.jpg">
+
+
+### How to Access the Auditlog
+
+Once activated, the buildin AuditLog will track any action on the admin interface. You can access the data via the terminal as follows:
+
+#### Table Information - Get the basic table information
+
+```bash
+docker exec -it [Lime DB Docker Container] psql -U limesurvey -d limesurvey -c "\dt lime_audit*"
+```
+
+_Example Output:_
+
+| Schema | Name               | Type  | Owner      |
+|--------|--------------------|-------|------------|
+| public | lime_auditlog_log | table | limesurvey |
+
+
+#### Table Information - Get the table fields
+
+```bash
+docker exec -it [Lime DB Docker Container] psql -U limesurvey -d limesurvey -c "\d lime_auditlog_log"
+```
+
+_Example:_
+
+| Column     | Type         | Nullable | Description                                      |
+|------------|--------------|----------|--------------------------------------------------|
+| id         | integer      | NOT NULL | Primary key, auto-increment                      |
+| created    | timestamp    | -        | When the action occurred                         |
+| uid        | varchar(255) | -        | LimeSurvey user ID who performed the action      |
+| entity     | varchar(255) | -        | What was affected (e.g. token, survey)           |
+| entityid   | varchar(255) | -        | ID of the affected entity                        |
+| action     | varchar(255) | -        | What happened (e.g. create, update, delete)      |
+| fields     | text         | -        | Which fields were affected                       |
+| oldvalues  | text         | -        | Values before the action                         |
+| newvalues  | text         | -        | Values after the action                          |
+
+ 
+#### Table data
+
+```bash
+# Get the last 20 entries
+docker exec -it [Lime DB Docker Container] psql -U limesurvey -d limesurvey -c "SELECT * FROM lime_auditlog_log ORDER BY created DESC LIMIT 20;"
+```
+
+_Example: Creating a participant in the participant table:_
+
+| Field              | Value                                                                                                                                                                           |
+|--------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ID                 | 1                                                                                                                                                                               |
+| Created            | 2026-04-07 13:21:08                                                                                                                                                             |
+| User ID (uid)      | 1 (admin)                                                                                                                                                                       |
+| Entity             | token_376198                                                                                                                                                                    |
+| Action             | create                                                                                                                                                                          |
+| Fields             | sent, remindersent, remindercount, completed, usesleft, emailstatus, firstname, lastname, email, token, language, validfrom, validuntil, tid, participant_id, blacklisted, mpid |
+| Old Values         | (empty)                                                                                                                                                                         |
+| New Values         | firstname: Test, lastname: Patient, email: test@test.at, token: (empty), completed: N, usesleft: 1, sent: N, emailstatus: OK, language: en                                      |
 
 ## Set permissions for a single survey
 
