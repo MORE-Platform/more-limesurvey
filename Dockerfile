@@ -1,9 +1,14 @@
 FROM composer:2 AS vendor
 
 WORKDIR /app
+
+# No tags or releases are available so I pinned the latest commit from the masterbranch dating '04.02.2025'
 RUN apk add --no-cache git \
-    && git clone --depth 1 https://github.com/SondagesPro/limesurvey-oauth2.git AuthOAuth2 \
-    && cd AuthOAuth2 \
+    && mkdir AuthOAuth2 && cd AuthOAuth2 \
+    && git init \
+    && git remote add origin https://github.com/SondagesPro/limesurvey-oauth2.git \
+    && git fetch --depth 1 origin 738b27c5ad9c0e782c28f9b8347a9d2bc57c3851 \
+    && git checkout FETCH_HEAD \
     && composer install --no-dev --optimize-autoloader \
     && rm -rf .git composer.json composer.lock /var/lib/apt/lists/*
 
