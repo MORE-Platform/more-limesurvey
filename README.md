@@ -6,13 +6,19 @@ MORE-Specific Repackaging of Limesurvey
 
 This repository contains a `docker-compose.yaml` to launch Limesurvey locally for development and testing.
 
+Before starting the services, copy the example environment file and adjust the values if needed:
+
+```bash
+cp .env.example .env
+```
+
 After starting the Compose using `docker compose up -d`, Limesurvey is available at http://localhost:8080.
 To access the configuration backend, login via http://localhost:8080/index.php/admin/authentication/sa/login.
 
 ## Authentication 
 
 For authentication in MORE we use SSO based on OAuth with Keycloak.
-With the plugin https://github.com/BDSU/limesurvey-oauth2, we can use our account we use for the
+With the plugin https://github.com/SondagesPro/limesurvey-oauth2, we can use our account we use for the
 MORE Study-Manager to sign in to Limesurvey.
 
 The OAuth-plugin is shipped within this docker-image, but needs to be "loaded" before it can be
@@ -113,7 +119,7 @@ Tags must follow the format: `v<Major>.<Minor>.<Patch>` (e.g., `v1.0.1`).
 
 ### CI/CD Triggers
 The Docker build and publish workflow is triggered on:
-- **Push to branches:** `main`, `develop`, `redlink`, `staging`
+- **Push to branches:** `main`, `develop`
 - **Push of tags:** `v*.*.*`
 - **Pull requests**
 
