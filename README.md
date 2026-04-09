@@ -103,3 +103,23 @@ answer the survey and the answers are stored in the limesurvey database.
 
 Limesurvey allows custom scripts for a theme. With this feature, custom functionality can be
 added, when a user submits an answer, for example. This could be useful in the future.
+
+## Tagging and Deployment Strategy
+
+To ensure safe and predictable deployments, this repository uses a semantic versioning tagging strategy.
+
+### Tag Format
+Tags must follow the format: `v<Major>.<Minor>.<Patch>` (e.g., `v1.0.1`).
+
+### CI/CD Triggers
+The Docker build and publish workflow is triggered on:
+- **Push to branches:** `main`, `develop`, `redlink`, `staging`
+- **Push of tags:** `v*.*.*`
+- **Pull requests**
+
+### Docker Image Tags
+When a Git tag is pushed, the following Docker tags are automatically generated:
+- `v<Major>.<Minor>.<Patch>`
+- `v<Major>.<Minor>`
+- `v<Major>`
+- `latest` (only on default branch)
