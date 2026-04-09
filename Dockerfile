@@ -1,13 +1,20 @@
-FROM docker.io/martialblog/limesurvey:5-apache
+FROM composer:2 AS vendor
+
+WORKDIR /app
+
+# No tags or releases are available so I pinned the latest commit from the masterbranch dating '04.02.2025'
+RUN apk add --no-cache git \
+    && mkdir AuthOAuth2 && cd AuthOAuth2 \
+    && git init \
+    && git remote add origin https://github.com/SondagesPro/limesurvey-oauth2.git \
+    && git fetch --depth 1 origin 738b27c5ad9c0e782c28f9b8347a9d2bc57c3851 \
+    && git checkout FETCH_HEAD \
+    && composer install --no-dev --optimize-autoloader \
+    && rm -rf .git composer.json composer.lock /var/lib/apt/lists/*
+
+FROM docker.io/martialblog/limesurvey:6-apache
 
 USER root
-RUN apt-get update && apt-get install -y \
-	unzip \
-	&& rm -rf /var/lib/apt/lists/*
+COPY --from=vendor --chown=33:33 /app/AuthOAuth2 /var/www/html/plugins/AuthOAuth2
 
 USER 33
-ADD --chown=33:33 \
-	#--checksum=md5:746ff9ce82c14f247e8aacdafa8b16a4 \
-	https://github.com/BDSU/limesurvey-oauth2/releases/download/v1.0.0/AuthOAuth2.zip \
-	plugins/
-RUN unzip plugins/AuthOAuth2.zip -d plugins && rm -rf plugins/AuthOAuth2.zip
