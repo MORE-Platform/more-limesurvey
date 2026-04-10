@@ -44,10 +44,14 @@ Finally, enable the plugin in the Overview.
 
 ## Limesurvey API (Remote Control)
 
+### Global Settings
+ <img width="800" src="doc/img/limesurvey-6/menu_configuration_gloabl.jpg">
+
+#### JSON-RPC
 Limesurvey uses JSON-RPC. This has to be enabled first before it can be used in
 `Configuration > Settings > Global > Interfaces` as such:
 
-<img width="422" alt="JSON-RPC Configuration" src="doc/img/json-rpc.png">
+<img width="800" alt="JSON-RPC Configuration" src="doc/img/limesurvey-6/global-settings_interfaces.jpg">
 
 To use the API, you first need to get a session key. Only then you can use it. The most important
 requests for us are:
@@ -62,46 +66,44 @@ requests for us are:
 - delete_survey
 
 ## Global Survey Settings
+ <img width="800" src="doc/img/limesurvey-6/menu_configuration_global-survey.jpg">
 
 We must modify the default settings in LimeSurvey and ensure that these feature are activated within the Global Survey Settings:
 
-- under the Presentation section turn on Automatically load end URL when survey complete:
+### Presentation
+under the Presentation section turn on Automatically load end URL when survey complete:
 
-  `Configuration > Settings > Global survey > Presentation`
+`Configuration > Settings > Global survey > Presentation`
 
-  <img width="600" alt="JSON-RPC Configuration" src="doc/img/automatically-load-end-URL-lime-survey.png">
+  <img width="800" alt="JSON-RPC Configuration" src="doc/img/limesurvey-6/presentation_automatically-end-url.jpg">
 
-- under the Participant settings trun on Allow multiple responses or update responses with one access code:
+### Participant settings
+under the Participant settings trun on Allow multiple responses or update responses with one access code:
 
-  `Configuration > Settings > Global survey > Participant settings`
+`Configuration > Settings > Global survey > Participant settings`
 
-  <img width="600" alt="JSON-RPC Configuration" src="doc/img/allow-multiple-responses-lime-survey.png">
+  <img width="800" alt="JSON-RPC Configuration" src="doc/img/limesurvey-6/participant-settings_allow-multiple-responses.jpg" />
 
-- under the "Notifications & Data" section you must enable "Date stamp" to store the date-timestamp
+### Notifications & Data
+under the "Notifications & Data" section you must enable "Date stamp" to store the date-timestamp
 
-  `Configuration > Settings > Global survey > Notifications & Data`
+`Configuration > Settings > Global survey > Notifications & Data`
 
-  <img width="600" src="doc/img/date-stamp-lime-survey-setting.png">
-
-- activate time stamps for questionnaires (if this is not activated it will send a incorrect dummy timestamp, that the more studymanager will filter out)
-
-  `Configuration > Global Survey > Notification & Data > Date stamp`
- 
- <img width="600" src="doc/img/lime-survey_datastamp.jpg">
+  <img width="800" src="doc/img/limesurvey-6/notification-data_data-stamps.jpg">
 
 
-## Activate Build In Auditlog
+## Build-in Auditlog Plugin
 
-The Buildin Auditlog provided by Limesurvey is tracking actions performed on the admin interface only. Nevertheless, it is a good starting point. Data tracked by this Plugin can be accessed via terminal later on.
+The Build-in Auditlog provided by Limesurvey is tracking actions performed on the admin interface only. Nevertheless, it is a good starting point. Data tracked by this Plugin can be accessed via terminal later on.
 
-- Activate the Auditlog Plugin
-  
+ <img width="800" src="doc/img/limesurvey-6/menu_configuration_plugins.jpg">
+
+### Activate the Auditlog Plugin
   `Configuration > Plugins > Auditlog (activate via button)`
 
- <img width="600" src="doc/img/lime-survey_activate-build-in-auditlog.jpg">
+ <img width="800" src="doc/img/limesurvey-6/plugins_auditlog_activate.jpg">
 
-
-### How to Access the Auditlog
+### Access the Auditlog
 
 Once activated, the buildin AuditLog will track any action on the admin interface. You can access the data via the terminal as follows:
 
@@ -164,6 +166,8 @@ _Example: Creating a participant in the participant table:_
 These permissions only apply for a single survey. If you want to set permissions for the whole system, you can use global permissions. These permissions can be offered either to a single user or to a user group.
 
 To change the survey permissions, click the Settings tab. Then, click Survey permissions and choose to whom would you like to offer permissions. The permissions can be offered either separately to specific users or to a user group.
+
+ <img width="800" src="doc/img/limesurvey-6/survey-settings_survey-permissions.jpg">
 
 By default, an user (non-admin) cannot grant survey permissions to users that are not part of the same group as the survey administrator. This is a security option enabled by default in LimeSurvey. To change this, you need to deactivate option Group member can only see own group, located in the Global settings, under the Security tab. However, if you feel unsure about disabling this option, you can create groups containing those users that can be seen and be granted survey permissions by a survey creator.
 
