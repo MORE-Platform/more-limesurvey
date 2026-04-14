@@ -6,6 +6,12 @@ MORE-Specific Repackaging of Limesurvey
 
 This repository contains a `docker-compose.yaml` to launch Limesurvey locally for development and testing.
 
+Before starting the services, copy the example environment file and adjust the values if needed:
+
+```bash
+cp .env.example .env
+```
+
 After starting the Compose using `docker compose up -d`, Limesurvey is available at http://localhost:8080.
 To access the configuration backend, login via http://localhost:8080/index.php/admin/authentication/sa/login.
 
@@ -14,7 +20,7 @@ To access the configuration backend, login via http://localhost:8080/index.php/a
 ## Authentication 
 
 For authentication in MORE we use SSO based on OAuth with Keycloak.
-With the plugin https://github.com/BDSU/limesurvey-oauth2, we can use our account we use for the
+With the plugin https://github.com/SondagesPro/limesurvey-oauth2, we can use our account we use for the
 MORE Study-Manager to sign in to Limesurvey.
 
 The OAuth-plugin is shipped within this docker-image, but needs to be "loaded" before it can be
@@ -189,10 +195,33 @@ To answer a questionnaire, a user needs an access token and the url of the surve
 answer the survey and the answers are stored in the limesurvey database.
 
 ---
+
 ## Additional information 
 
 Limesurvey allows custom scripts for a theme. With this feature, custom functionality can be
 added, when a user submits an answer, for example. This could be useful in the future.
+
+---
+
+## Tagging and Deployment Strategy
+
+To ensure safe and predictable deployments, this repository uses a semantic versioning tagging strategy.
+
+### Tag Format
+Tags must follow the format: `v<Major>.<Minor>.<Patch>` (e.g., `v1.0.1`).
+
+### CI/CD Triggers
+The Docker build and publish workflow is triggered on:
+- **Push to branches:** `main`, `develop`
+- **Push of tags:** `v*.*.*`
+- **Pull requests**
+
+### Docker Image Tags
+When a Git tag is pushed, the following Docker tags are automatically generated:
+- `v<Major>.<Minor>.<Patch>`
+- `v<Major>.<Minor>`
+- `v<Major>`
+- `latest` (only on default branch)
 
 ---
 

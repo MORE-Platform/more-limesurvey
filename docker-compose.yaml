@@ -2,7 +2,7 @@ name: more-limesurvey
 
 services:
   limesurvey:
-    image: ghcr.io/more-platform/limesurvey:develop
+    image: .
     build:
       context: .
     ports:
@@ -16,17 +16,16 @@ services:
       timeout: 5s
       retries: 3
     environment:
-      DB_TYPE: pgsql
-      DB_PORT: 5432
-      DB_HOST: database
-      DB_PASSWORD: lime
-      DB_NAME: lime
-      DB_USERNAME: lime
-      ADMIN_NAME: Super-Admin
-      ADMIN_USER: admin
+      DB_TYPE: ${DB_TYPE}
+      DB_PORT: ${DB_PORT}
+      DB_HOST: ${DB_HOST}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      ADMIN_NAME: ${ADMIN_NAME}
+      ADMIN_USER: ${ADMIN_USER}
       # Initial Password, will be changed on setup
-      ADMIN_PASSWORD: admin
-
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
   database:
     image: postgres:14-alpine
     restart: unless-stopped
@@ -36,6 +35,6 @@ services:
       timeout: 1s
       retries: 5
     environment:
-      POSTGRES_USER: lime
-      POSTGRES_DB: lime
-      POSTGRES_PASSWORD: lime
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
