@@ -56,7 +56,7 @@ In the P2R context, responsibilities are assigned as follows:
 - provides accurate user information list via email (see section 4)
 - Communicates updates and changes in a timely manner
 
-Assigned contact: **Gunnar (Study PI)**
+Assigned contact: **Gunnar Treff (Study PI)**
  
 ### Redlink (Study Administrator)
 - Acts as System Administrator in the P2R context
@@ -64,13 +64,15 @@ Assigned contact: **Gunnar (Study PI)**
 - Assigns roles according to agreed definitions
 - Ensures secure and correct implementation of roles and permissions
 
+Assigned contact: **Jan Cortiel (jan.cortiel@redlink.at)**
+
 ---
 
 ## 4. P2R: User flow
 
-### 4.1 Keycloak Roles and Groups
+### 4.1 OAuth Roles and Groups
 
-Keycloak is used for authentication and role assignment. The following groups are defined:
+Keycloak (OAuth) is used for authentication and role assignment. The following groups are defined:
 
 | Group               | Realm Roles       | Description                                                                                                                              |
 |---------------------|-------------------|------------------------------------------------------------------------------------------------------------------------------------------|
@@ -78,7 +80,7 @@ Keycloak is used for authentication and role assignment. The following groups ar
 | MORE Researcher     | incl. MORE Viewer | Can create new studies and access existing studies (based on assigned study-level roles)                                                 |
 **Default role:** All newly created users are assigned MORE Researcher unless explicitly specified otherwise.
 
-**Note:** The User Roles and Groups provided by Keycloak are not 1:1 corresponding with the roles inside the MORE platform (Study Administrator, Study Operator, Study Viewer). 
+**Note:** The above Roles are system wide and different to the study roles (Study Administrator, Study Operator, Study Viewer). The system wide role MORE Researcher can be assigned to any study role. This assignment is done by the study configuration.
 
 ---
 
