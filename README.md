@@ -9,6 +9,8 @@ This repository contains a `docker-compose.yaml` to launch Limesurvey locally fo
 After starting the Compose using `docker compose up -d`, Limesurvey is available at http://localhost:8080.
 To access the configuration backend, login via http://localhost:8080/index.php/admin/authentication/sa/login.
 
+---
+
 ## Authentication 
 
 For authentication in MORE we use SSO based on OAuth with Keycloak.
@@ -42,6 +44,8 @@ Finally, enable the plugin in the Overview.
 **NOTE**: Even if you enable OAuth2 as the _default login_ mechanism, you can always switch to the default
 (local database) login by directly going to `${BASE_URL}/index.php/admin/authentication/sa/login/authMethod/Authdb`. 
 
+---
+
 ## Limesurvey API (Remote Control)
 
 ### Global Settings
@@ -65,36 +69,37 @@ requests for us are:
 - list_surveys (lists all surveys belonging to a user)
 - delete_survey
 
-## Global Survey Settings
+### Global Survey Settings
  <img width="800" src="doc/img/limesurvey-6/menu_configuration_global-survey.jpg">
 
-We must modify the default settings in LimeSurvey and ensure that these feature are activated within the Global Survey Settings:
+We must modify the default settings in Limesurvey and ensure that these feature are activated within the Global Survey Settings:
 
-### Presentation
+#### Presentation
 under the Presentation section turn on Automatically load end URL when survey complete:
 
 `Configuration > Settings > Global survey > Presentation`
 
   <img width="800" alt="JSON-RPC Configuration" src="doc/img/limesurvey-6/presentation_automatically-end-url.jpg">
 
-### Participant settings
+#### Participant settings
 under the Participant settings trun on Allow multiple responses or update responses with one access code:
 
 `Configuration > Settings > Global survey > Participant settings`
 
   <img width="800" alt="JSON-RPC Configuration" src="doc/img/limesurvey-6/participant-settings_allow-multiple-responses.jpg" />
 
-### Notifications & Data
+#### Notifications & Data
 under the "Notifications & Data" section you must enable "Date stamp" to store the date-timestamp
 
 `Configuration > Settings > Global survey > Notifications & Data`
 
   <img width="800" src="doc/img/limesurvey-6/notification-data_data-stamps.jpg">
 
+---
 
 ## Build-in Auditlog Plugin
 
-The Build-in Auditlog provided by Limesurvey is tracking actions performed on the admin interface only. Nevertheless, it is a good starting point. Data tracked by this Plugin can be accessed via terminal later on.
+The built-in Audit Log plugin provided by Limesurvey logs actions performed within the admin interface. This makes it a solid foundation for tracking and analyzing activities on the admin panel side. The recorded data can be accessed via the terminal for further inspection and analysis.
 
  <img width="800" src="doc/img/limesurvey-6/menu_configuration_plugins.jpg">
 
@@ -132,7 +137,7 @@ _Example:_
 |------------|--------------|----------|--------------------------------------------------|
 | id         | integer      | NOT NULL | Primary key, auto-increment                      |
 | created    | timestamp    | -        | When the action occurred                         |
-| uid        | varchar(255) | -        | LimeSurvey user ID who performed the action      |
+| uid        | varchar(255) | -        | Limesurvey user ID who performed the action      |
 | entity     | varchar(255) | -        | What was affected (e.g. token, survey)           |
 | entityid   | varchar(255) | -        | ID of the affected entity                        |
 | action     | varchar(255) | -        | What happened (e.g. create, update, delete)      |
@@ -161,6 +166,8 @@ _Example: Creating a participant in the participant table:_
 | Old Values         | (empty)                                                                                                                                                                         |
 | New Values         | firstname: Test, lastname: Patient, email: test@test.at, token: (empty), completed: N, usesleft: 1, sent: N, emailstatus: OK, language: en                                      |
 
+---
+
 ## Set permissions for a single survey
 
 These permissions only apply for a single survey. If you want to set permissions for the whole system, you can use global permissions. These permissions can be offered either to a single user or to a user group.
@@ -169,17 +176,59 @@ To change the survey permissions, click the Settings tab. Then, click Survey per
 
  <img width="800" src="doc/img/limesurvey-6/survey-settings_survey-permissions.jpg">
 
-By default, an user (non-admin) cannot grant survey permissions to users that are not part of the same group as the survey administrator. This is a security option enabled by default in LimeSurvey. To change this, you need to deactivate option Group member can only see own group, located in the Global settings, under the Security tab. However, if you feel unsure about disabling this option, you can create groups containing those users that can be seen and be granted survey permissions by a survey creator.
+By default, an user (non-admin) cannot grant survey permissions to users that are not part of the same group as the survey administrator. This is a security option enabled by default in Limesurvey. To change this, you need to deactivate option Group member can only see own group, located in the Global settings, under the Security tab. However, if you feel unsure about disabling this option, you can create groups containing those users that can be seen and be granted survey permissions by a survey creator.
 
 Check the following link for further information:
 https://manual.limesurvey.org/Manage_users#Set_permissions_for_a_single_survey
+
+---
 
 ## Answering a questionnaire
 
 To answer a questionnaire, a user needs an access token and the url of the survey. They can then
 answer the survey and the answers are stored in the limesurvey database.
 
+---
 ## Additional information 
 
 Limesurvey allows custom scripts for a theme. With this feature, custom functionality can be
 added, when a user submits an answer, for example. This could be useful in the future.
+
+---
+
+## Incompatibilities After the Limesurvey 6 Update and How to Resolve Them
+After updating to Limesurvey 6, surveys originally created in Limesurvey 5 may not be fully compatible with the new version. In such cases, errors can occur when accessing or completing these surveys.
+
+The following errors in the user interface, when answering a survey, are related to this issue:
+
+<img width="800" style="margin-bottom: 20px" src="doc/img/limesurvey-6/incompatibility/limesurvey-6_incompatible-error-3.png">
+
+<img width="600" src="doc/img/limesurvey-6/incompatibility/limesurvey-6_incompatible-errors-1-2.jpg">
+
+
+### Resolution
+To resolve this issue, the following approach can be used:
+- The MORE Studymanager Limesurvey Observation was extended to allow linking a new Limesurvey ID even if the survey already started..
+- Existing surveys that were created in Limesurvey 5 and have those issues can be easily exported (.lss or .lsa) and reimported inside the MORE Limesurvey Server. During the import process, Limesurvey 6 automatically adjusts and cleans the survey schema to ensure compatibility.
+- After linking the newly imported survey to the corresponding Limesurvey observation, functionality is restored and the survey behaves as expected.
+
+#### Step by Step Guide
+1. Go to the MORE Limesurvey server and locate your survey using the linked ID. Open the survey you want to fix and click on the **Export** button.
+
+   <img width="800" src="doc/img/limesurvey-6/incompatibility/export-limesurvey.jpg">
+
+3. Choose either the **.lss** or **.lsa** format for export.
+
+   <img width="800" src="doc/img/limesurvey-6/incompatibility/export-limesurvey-formats.jpg">
+
+4. Import the survey again into Limesurvey 6. During this process, potential incompatibilities are automatically resolved..
+
+   <img width="800" src="doc/img/limesurvey-6/incompatibility/import-limsurvey.jpg">
+
+
+5. Copy the new survey ID and navigate to the MORE StudyManager to relink the new survey within the existing Limesurvey observation.
+
+   <img width="800" src="doc/img/limesurvey-6/incompatibility/new-limesurvey.jpg"><br>
+   <img width="800" src="doc/img/limesurvey-6/incompatibility/relink-limsurvey.jpg">
+
+---
