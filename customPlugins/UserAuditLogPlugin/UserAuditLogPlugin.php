@@ -11,7 +11,7 @@ class UserAuditLogPlugin extends PluginBase
     {
         $this->subscribe('beforeSurveyPage');
         $this->subscribe('afterSurveyComplete');
-        $this->subscribe('newUnsecuredDirectRequest');
+        $this->subscribe('newDirectRequest');
 
         $this->ensureTable();
     }
@@ -26,6 +26,16 @@ class UserAuditLogPlugin extends PluginBase
         if (!$surveyId) {
             return;
         }
+
+        // --- AUTH GUARD START ---
+        // Redirect guest users to the login page
+        if (Yii::app()->user->isGuest) {
+            Yii::app()->controller->redirect(
+                Yii::app()->baseUrl . '/index.php/admin/authentication/sa/login'
+            );
+            return;
+        }
+        // --- AUTH GUARD END ---
 
         $surveySession = Yii::app()->session['survey_' . $surveyId] ?? [];
         $token = $surveySession['token'] ?? null;
@@ -45,19 +55,20 @@ class UserAuditLogPlugin extends PluginBase
         ]);
 
         // JS endpoint
-        $endpointUrl = Yii::app()->baseUrl . '/index.php/plugins/unsecure/direct?plugin=UserAuditLogPlugin&function=logAnswerChange';
+        $endpointUrl = Yii::app()->createUrl('plugins/direct', ['plugin' => 'UserAuditLogPlugin', 'function' => 'logAnswerChange']);
 
         $surveyIdJs = (int)$surveyId;
         $stepJs = $step !== null ? (int)$step : 'null';
+        $csrfTokenName = Yii::app()->request->csrfTokenName;
 
         Yii::app()->clientScript->registerScript(
             'ualp_script',
             <<<JS
 (function () {
-
     var surveyId   = {$surveyIdJs};
     var pageNumber = {$stepJs};
     var endpoint   = "{$endpointUrl}";
+    var csrfTokenName = "{$csrfTokenName}";
 
     console.log("[UALP] init", { surveyId, pageNumber, endpoint });
 
@@ -85,12 +96,16 @@ class UserAuditLogPlugin extends PluginBase
     });
 
     $(document).on('change', 'input, select, textarea', function () {
-
         var el = this;
         if (!el.name) return;
 
         var parsed = parseName(el.name);
         if (!parsed) return;
+
+        // Try to get CSRF token from several locations
+        var csrfToken = $('input[name="' + csrfTokenName + '"]').val() 
+                     || (window.LS && window.LS.csrfToken) 
+                     || "";
 
         var payload = {
             survey_id: surveyId,
@@ -103,30 +118,41 @@ class UserAuditLogPlugin extends PluginBase
             new_value: getValue(el)
         };
 
+        // Build URLSearchParams for application/x-www-form-urlencoded
+        var formData = new URLSearchParams();
+        for (var key in payload) {
+            if (payload[key] !== null) {
+                formData.append(key, payload[key]);
+            }
+        }
+
+        // Add CSRF token as a standard POST variable
+        if (csrfToken) {
+            formData.append(csrfTokenName, csrfToken);
+        }
+
         oldValues[el.name] = payload.new_value;
 
         console.log("[UALP] change", payload);
 
         fetch(endpoint, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-Requested-With": "XMLHttpRequest" 
+            },
             credentials: "include",
-            body: JSON.stringify(payload)
+            body: formData.toString()
         })
         .then(r => {
             if (!r.ok) console.warn("[UALP] request failed", r.status);
         })
         .catch(err => console.warn("[UALP] error", err));
     });
-
 })();
 JS
         );
     }
-
-    // ---------------------------------------------------------------------
-    // AFTER SURVEY COMPLETE
-    // ---------------------------------------------------------------------
 
     public function afterSurveyComplete(): void
     {
@@ -144,76 +170,59 @@ JS
     }
 
     // ---------------------------------------------------------------------
-    // AJAX ENDPOINT (ROBUST)
+    // AJAX ENDPOINT (SECURE)
     // ---------------------------------------------------------------------
 
-    public function newUnsecuredDirectRequest(): void
+    public function newDirectRequest(): void
     {
         $request = Yii::app()->request;
-
-        error_log('[UALP] HIT ' . $request->requestUri);
+        
+        // Check for specific function to avoid conflict with other plugins
+        if ($this->event->get('function') !== 'logAnswerChange') {
+            return;
+        }
 
         if (!$request->isPostRequest) {
             http_response_code(405);
             die('POST only');
         }
 
-        $raw = file_get_contents('php://input');
-        error_log('[UALP] RAW ' . $raw);
+        // Use getPost() to read application/x-www-form-urlencoded data
+        $surveyId = $request->getPost('survey_id');
 
-        $body = json_decode($raw, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            error_log('[UALP] JSON ERROR ' . json_last_error_msg());
+        if (empty($surveyId)) {
             http_response_code(400);
-            die('Invalid JSON');
+            die('Invalid Request');
         }
 
-        if (empty($body['survey_id'])) {
-            error_log('[UALP] missing survey_id');
-            http_response_code(400);
-            die('Missing survey_id');
-        }
-
-        $yiiUser = Yii::app()->user;
-
-        if ($yiiUser->isGuest) {
-            error_log('[UALP] guest blocked');
-            http_response_code(401);
-            die('Unauthorized');
-        }
+        // Retrieve the participant token from the session, as it's not in the AJAX payload
+        $surveySession = Yii::app()->session['survey_' . $surveyId] ?? [];
+        $token = $surveySession['token'] ?? null;
 
         try {
             $this->writeLog([
-                'survey_id'         => (int)$body['survey_id'],
-                'participant_token' => null,
+                'survey_id'         => (int)$surveyId,
+                'participant_token' => $token,
                 'event_type'        => 'answer_change',
-                'page_number'       => $body['page_number'] ?? null,
-                'group_id'          => $body['group_id'] ?? null,
-                'question_code'     => $body['question_code'] ?? null,
-                'sub_question_code' => $body['sub_question_code'] ?? null,
-                'input_type'        => $body['input_type'] ?? null,
-                'old_value'         => $body['old_value'] ?? null,
-                'new_value'         => $body['new_value'] ?? null,
+                'page_number'       => $request->getPost('page_number'),
+                'group_id'          => $request->getPost('group_id'),
+                'question_code'     => $request->getPost('question_code'),
+                'sub_question_code' => $request->getPost('sub_question_code'),
+                'input_type'        => $request->getPost('input_type'),
+                'old_value'         => $request->getPost('old_value'),
+                'new_value'         => $request->getPost('new_value'),
             ]);
-
-            error_log('[UALP] INSERT OK');
 
             http_response_code(200);
             echo json_encode(['status' => 'ok']);
             die();
 
         } catch (Exception $e) {
-            error_log('[UALP] DB ERROR ' . $e->getMessage());
+            error_log('[UALP] AJAX DB ERROR: ' . $e->getMessage());
             http_response_code(500);
-            echo json_encode(['error' => $e->getMessage()]);
             die();
         }
     }
-
-    // ---------------------------------------------------------------------
-    // TABLE SETUP
-    // ---------------------------------------------------------------------
 
     private function ensureTable(): void
     {
@@ -249,36 +258,34 @@ JS
         }
     }
 
-    // ---------------------------------------------------------------------
-    // DB WRITE
-    // ---------------------------------------------------------------------
-
     private function writeLog(array $data): void
     {
         $yiiUser = Yii::app()->user;
         $session = Yii::app()->session;
 
-        $result = Yii::app()->db->createCommand()->insert(
-            Yii::app()->db->tablePrefix . 'user_audit_log',
-            [
-                'survey_id'         => $data['survey_id'],
-                'participant_token' => $data['participant_token'] ?? null,
-                'oauth_user_id'     => $yiiUser->isGuest ? null : $yiiUser->id,
-                'oauth_username'    => $yiiUser->isGuest ? null : $yiiUser->name,
-                'event_type'        => $data['event_type'],
-                'page_number'       => $data['page_number'] ?? null,
-                'group_id'          => $data['group_id'] ?? null,
-                'question_id'       => $data['question_id'] ?? null,
-                'question_code'     => $data['question_code'] ?? null,
-                'sub_question_code' => $data['sub_question_code'] ?? null,
-                'input_type'        => $data['input_type'] ?? null,
-                'old_value'         => $data['old_value'] ?? null,
-                'new_value'         => $data['new_value'] ?? null,
-                'session_id'        => $session->sessionID,
-                'ip_address'        => $_SERVER['REMOTE_ADDR'] ?? null,
-            ]
-        );
-
-        error_log('[UALP] insert result: ' . var_export($result, true));
+        try {
+            Yii::app()->db->createCommand()->insert(
+                Yii::app()->db->tablePrefix . 'user_audit_log',
+                [
+                    'survey_id'         => $data['survey_id'],
+                    'participant_token' => $data['participant_token'] ?? null,
+                    'oauth_user_id'     => $yiiUser->isGuest ? null : $yiiUser->id,
+                    'oauth_username'    => $yiiUser->isGuest ? null : $yiiUser->name,
+                    'event_type'        => $data['event_type'],
+                    'page_number'       => $data['page_number'] ?? null,
+                    'group_id'          => $data['group_id'] ?? null,
+                    'question_id'       => $data['question_id'] ?? null,
+                    'question_code'     => $data['question_code'] ?? null,
+                    'sub_question_code' => $data['sub_question_code'] ?? null,
+                    'input_type'        => $data['input_type'] ?? null,
+                    'old_value'         => $data['old_value'] ?? null,
+                    'new_value'         => $data['new_value'] ?? null,
+                    'session_id'        => $session->sessionID,
+                    'ip_address'        => $_SERVER['REMOTE_ADDR'] ?? null,
+                ]
+            );
+        } catch (Exception $e) {
+            error_log('[UALP] writeLog DB ERROR: ' . $e->getMessage());
+        }
     }
 }
