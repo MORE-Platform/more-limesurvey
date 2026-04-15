@@ -282,14 +282,18 @@ WHERE survey_id = 12345
 ORDER BY created_at;
 ```
 
-### Why both `question_id` and `question_code`?
+### `question_id` and `question_code` — POC scope
 
 LimeSurvey has two question identifiers:
-- `question_id` — internal numeric ID, always present, but meaningless without mapping
-- `question_code` — set by the survey designer (e.g. `"BPM"`, `"VISIT_DATE"`), may be empty
+- `question_id` — internal numeric ID, parseable directly from the input name (`answer{SID}X{QID}X{SQID}`)
+- `question_code` — set by the survey designer (e.g. `"BPM"`, `"VISIT_DATE"`), not in the DOM
 
-Both are logged. If one is null, the other is still available. No post-hoc mapping needed
-for queries.
+**POC:** only `question_code` is logged. PHP injects a `{ questionId → questionCode }` map for
+the current page; JS looks up the code via the numeric ID parsed from the input name and sends
+it in the AJAX payload. The `question_id` column stays `NULL`.
+
+> **Post-POC:** parse the numeric `question_id` directly from the input name and populate that
+> column as well. Both columns then act as a fallback for each other.
 
 ### `old_value` and `new_value` policy
 
@@ -350,15 +354,22 @@ The endpoint:
 2. Reads `oauth_user_id`, `oauth_username`, `participant_token`, `session_id`, `ip_address`
    from the server side (never trusted from the client payload)
 3. Writes one row to `lime_user_audit_log`
+4. Returns **HTTP 200** on success, non-200 on failure — no JSON body required.
+   The JS checks `response.ok` and silently ignores errors (fire-and-forget).
 
 ### JavaScript (injected via `beforeSurveyPage`)
 
 The JS is the same event-driven approach as HelloWorld, but instead of `console.log` it
-fires `fetch()` / `XMLHttpRequest` to the AJAX endpoint above.
+fires `fetch()` to the AJAX endpoint above.
 
 Events captured:
 - `change` on any `input`, `select`, `textarea` → `answer_change`
 - Page submit button click → nothing extra needed (server-side `beforeSurveyPage` handles it)
+
+**Question code lookup:** PHP injects a `questionCodeMap` JSON object (`{ "42": "BPM", ... }`)
+for all questions on the current page. JS parses the numeric question ID from the input name
+(`answer{SID}X{QID}X{SQID}`) and looks up the corresponding `question_code` from the map.
+Only `question_code` is sent in the AJAX payload (POC scope — `question_id` column stays NULL).
 
 Old value tracking: the JS records the value of each field at page load, then sends the
 snapshot as `old_value` when a `change` event fires.
@@ -416,17 +427,20 @@ COPY --chown=33:33 customPlugins/UserAuditLogPlugin /var/www/html/plugins/UserAu
 
 ---
 
-## 8. Implementation Steps (in order)
+## 8. Implementation Plan
 
-1. `config.xml` — copy from HelloWorld, rename, update description
-2. `ensureTable()` — create DB table + indexes on plugin init
-3. `writeLog(array $data)` — shared helper to insert one row
-4. `onBeforeSurveyPage()` — OAuth redirect logic + `survey_open` / `page_load` logging
-5. `onAfterSurveyComplete()` — `survey_submit` logging
-6. `onNewUnsecuredDirectRequest()` — AJAX endpoint for `answer_change`
-7. JavaScript — event listeners + `fetch()` to AJAX endpoint, old-value tracking
-8. `Dockerfile` — add COPY line
-9. `docker compose up --build` + manual test
+| Step | Title | Short Description | Status |
+|------|-------|-------------------|--------|
+| 1 | `config.xml` | Copy from HelloWorld, rename to `UserAuditLogPlugin`, update name and description. | not done |
+| 2 | Skeleton `UserAuditLogPlugin.php` | Create the PHP class with `init()` subscribing all three hooks (`beforeSurveyPage`, `afterSurveyComplete`, `newUnsecuredDirectRequest`). Method bodies empty/stubbed. Activate plugin in LimeSurvey admin and verify it loads without errors. | not done |
+| 3 | `ensureTable()` + `writeLog()` | Add the private `ensureTable()` method (creates `lime_user_audit_log` + indexes on first run) and the private `writeLog(array $data)` helper that inserts one row. Call `ensureTable()` from `init()`. Verify the table appears in the DB after a container restart. | not done |
+| 4 | `onBeforeSurveyPage()` — OAuth redirect | Implement the guest check: if `Yii::app()->user->isGuest`, redirect to the OAuth login URL (Option A). Test by opening a survey URL while logged out — should land on the login page. | not done |
+| 5 | `onBeforeSurveyPage()` — `survey_open` / `page_load` logging | After the guest check, log `survey_open` (page 1) or `page_load` (pages > 1) via `writeLog()`. Test by navigating through a survey and checking rows appear in `lime_user_audit_log`. | not done |
+| 6 | `onAfterSurveyComplete()` — `survey_submit` logging | Log a `survey_submit` row when the survey is completed. Test by submitting a survey and confirming the row. | not done |
+| 7 | `onNewUnsecuredDirectRequest()` — AJAX endpoint | Expose the `logAnswerChange` function: validate session, read server-side fields, insert one `answer_change` row, return HTTP 200. Test with a direct `curl` / Postman POST to the endpoint URL. | not done |
+| 8 | JavaScript — `questionCodeMap` injection | In `onBeforeSurveyPage()`, query `Question::model()` for the current page's questions, build the `{ questionId → questionCode }` map, and inject it as a JS variable via `clientScript->registerScript()`. Verify the map is present in the browser console. | not done |
+| 9 | JavaScript — `answer_change` event listeners | Add the full JS block: old-value snapshot at page load, `change` listener that looks up `question_code` from the map and fires `fetch()` to the AJAX endpoint. Test by changing answers and watching rows appear in the DB. | not done |
+| 10 | Dockerfile | Add `COPY --chown=33:33 customPlugins/UserAuditLogPlugin /var/www/html/plugins/UserAuditLogPlugin` to the Dockerfile. Rebuild and verify the plugin is available after a fresh `docker compose up --build`. | not done |
 
 ---
 
@@ -453,4 +467,4 @@ docker exec -it <db-container> psql -U limesurvey -d limesurvey \
 
 ---
 
-*Last updated: 2026-04-15 — Ready for implementation*
+*Last updated: 2026-04-15 — Concept finalised, implementation plan added*
