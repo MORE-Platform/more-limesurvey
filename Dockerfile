@@ -17,5 +17,6 @@ FROM docker.io/martialblog/limesurvey:6-apache
 USER root
 COPY --from=vendor --chown=33:33 /app/AuthOAuth2 /var/www/html/plugins/AuthOAuth2
 COPY --chown=33:33 customPlugins/HelloWorld /var/www/html/plugins/HelloWorld
+COPY --chown=33:33 customPlugins/UserAuditLogPlugin /var/www/html/plugins/UserAuditLogPlugin
 
 USER 33
