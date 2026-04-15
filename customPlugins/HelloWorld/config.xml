@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <metadata>
+        <name>HelloWorld</name>
+        <type>plugin</type>
+        <version>1.0.0</version>
+        <author>MORE Platform</author>
+        <description>Logs Hello World to the browser console when a survey page loads.</description>
+        <license>MIT</license>
+    </metadata>
+    <compatibility>
+        <version>6.0</version>
+    </compatibility>
+    <updaters disabled="disabled"></updaters>
+</config>
