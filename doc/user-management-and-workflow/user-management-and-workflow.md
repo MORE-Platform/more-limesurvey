@@ -87,7 +87,7 @@ Keycloak (OAuth) is used for authentication and role assignment. The following g
 ### 4.2 User Provisioning Options
 
 #### 1. Self-registration
-- LBI registers thier Users directly via the Studymanager self sign-up process
+- LBI registers their Users directly via the Studymanager self sign-up process
 - Default role: MORE Researcher
 - No further action required unless role changes are needed
 
