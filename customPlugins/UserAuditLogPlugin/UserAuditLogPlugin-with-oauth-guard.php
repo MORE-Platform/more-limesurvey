@@ -24,9 +24,18 @@ class UserAuditLogPlugin extends PluginBase
     {
         $surveyId = $this->event->get('surveyId');
         if (!$surveyId) {
-            error_log("[UALP] beforeSurveyPage: No surveyId in event.");
             return;
         }
+
+        // --- AUTH GUARD START ---
+        // Redirect guest users to the login page
+        if (Yii::app()->user->isGuest) {
+            Yii::app()->controller->redirect(
+                Yii::app()->baseUrl . '/index.php/admin/authentication/sa/login'
+            );
+            return;
+        }
+        // --- AUTH GUARD END ---
 
         $surveySession = Yii::app()->session['survey_' . $surveyId] ?? [];
         $token = $surveySession['token'] ?? null;
@@ -182,19 +191,12 @@ JS
         $surveyId = $request->getPost('survey_id');
 
         if (empty($surveyId)) {
-            error_log('[UALP] newDirectRequest: Missing survey_id in POST data');
             http_response_code(400);
-            die('Invalid Request: Missing survey_id');
+            die('Invalid Request');
         }
 
         // Retrieve the participant token from the session, as it's not in the AJAX payload
         $surveySession = Yii::app()->session['survey_' . $surveyId] ?? [];
-        if (empty($surveySession)) {
-             // If session is empty, it might be a guest without a session yet, 
-             // but they should have one if they are on a survey page.
-             // We'll proceed with null token.
-             error_log("[UALP] Warning: No survey session found for survey " . $surveyId);
-        }
         $token = $surveySession['token'] ?? null;
 
         try {

@@ -493,3 +493,23 @@ docker exec -it more-studymanager-backend-lime-db-1 psql -U limesurvey -d limesu
 ---
 
 *Last updated: 2026-04-15 — Working agreement added; Dockerfile step merged into Step 2; routing note for `newUnsecuredDirectRequest` added*
+
+---
+
+### Decoupled Authentication and Logging 
+
+The original idea was to enforce a oauth login for the user before answering the survey. However, we found out that the Auditlog can be allowed to log even if no oauth user is present.
+
+#### Authentication & OAuth Integration
+   
+New Decoupled Workflow: The plugin no longer enforces a redirect to the OAuth login page. This allows the UserAuditLogPlugin to operate independently of the AuthOAuth2 plugin.
+
+ - Independent Activation: Both plugins can be activated or deactivated separately.
+ - Passive Logging: The audit log will always record survey interactions (page loads, answer changes, etc.) regardless of the user's login status.
+ - Graceful Identity Capture:
+    - If a user is logged in via OAuth (or any other method), their oauth_user_id and oauth_username are captured from Yii::app()->user.
+    - If the user is a guest, these fields are simply recorded as null in the database.
+ - Simplified Logic: By removing the "Auth Guard" redirect, we eliminate the need for complex session management (like userauditlog_return_url) and ensure the user experience remains uninterrupted by forced login screens unless required by LimeSurvey's own survey settings.
+
+ ##### Note on Plugin Independence (April 2026)
+As of the latest implementation, the UserAuditLogPlugin follows a "Log what is available" philosophy. It does not act as a gatekeeper for survey access. If your project requires mandatory OAuth authentication, this should be configured via LimeSurvey's internal survey permissions or the AuthOAuth2 plugin settings. The audit log will faithfully record the identity of whoever is interacting with the survey, even if they are an anonymous guest.
