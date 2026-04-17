@@ -86,10 +86,11 @@ Assigned contact: **Jan Cortiel (jan.cortiel@redlink.at)**
 
 Keycloak (OAuth) is used for authentication and role assignment. The following groups are defined:
 
-| Group              | Realm Roles       | Description                                                                                                                               |
-|--------------------|-------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| MORE Administrator | incl. MORE Admin  | (System Administrator, Platform Administrator): Rights to manage users, emergency functions, no rights to see data or manipulate studies. |
-| MORE Researcher    | incl. MORE Viewer | Can create new studies and access existing studies (based on assigned study-level roles)                                                  |
+| Group                   | Realm Roles       | Description                                                                                                                               |
+|-------------------------|-------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| MORE Administrator      | incl. MORE Admin  | (System Administrator, Platform Administrator): Rights to manage users, emergency functions, no rights to see data or manipulate studies. |
+| MORE Researcher         | incl. MORE Viewer | Can create new studies and access existing studies (based on assigned study-level roles)                                                  |
+| P2R Administrator (NEW) |                   | Manages users within the P2R context only. No system-wide administrative rights. (Role not yet configured or available)                   |
 
 **Default role:** All newly created users are assigned MORE Researcher unless explicitly specified otherwise.
 
@@ -112,18 +113,8 @@ Users can self register via the <register> link on the Login Page
 After Registration the system roles need to be assigned to the user. Without those roles he is not permitted to access
 the different applications of the study environment.
 
-**Option 1**
-
 P2R self-manages role assignment for users. Redlink will provide a special admin user for Keycloak that is allowed to
 assign Roles for Users
-
-**Option 2**
-
-- P2R (**Gunnar Treff (Study PI)**) notifies Redlink about users
-- Redlink will assign System Roles to the users
-
-*Option 1* is preferable as this removes several process steps and should allow for faster round trip times.
-Option 1 requires that P2R personal with this right, know how to assign roles in Keycloak.
 
 ---
 
