@@ -216,7 +216,7 @@ Both tables coexist independently. They answer different questions:
 |-------------------|--------------------|
 | One row = one admin action | One row = one discrete event or answer change |
 | `entity` + `action` as free text | Typed `event_type` column |
-| `fields`/`oldvalues`/`newvalues` as CSV/blob | Flat columns: `old_value`, `new_value`, `question_id`, `question_code` |
+| `fields`/`oldvalues`/`newvalues` as CSV/blob | Flat columns: `old_value`, `new_value`, `question_id`, `sub_question_id` |
 | Admin interface only | Survey participant + OAuth user events |
 | No session or page context | `page_number`, `group_id`, `session_id` |
 
@@ -247,9 +247,8 @@ CREATE TABLE lime_user_audit_log (
     group_id            INTEGER,            -- LimeSurvey question group ID
 
     -- Question context (set for answer_change only)
-    question_id         INTEGER,            -- LimeSurvey internal numeric question ID
-    question_code       VARCHAR(255),       -- researcher-defined question code (e.g. "BPM")
-    sub_question_code   VARCHAR(50),        -- for matrix/array questions (row code)
+    question_id         INTEGER,            -- LimeSurvey internal numeric question ID (qid)
+    sub_question_id     INTEGER,            -- numeric qid of the sub-question (matrix/array only)
     input_type          VARCHAR(50),        -- radio | checkbox | text | select | date | ...
 
     -- Change payload (set for answer_change; old_value NULL on first answer)
@@ -268,6 +267,23 @@ CREATE INDEX idx_ual_oauth_user  ON lime_user_audit_log (oauth_user_id);
 CREATE INDEX idx_ual_token       ON lime_user_audit_log (participant_token);
 CREATE INDEX idx_ual_event_type  ON lime_user_audit_log (event_type);
 ```
+
+### Why we don't adopt the `entity / entity_id / action` pattern from `lime_auditlog_log`
+
+The built-in log uses `entity` + `entity_id` because each row concerns **one entity at one level** — either a survey, or a question, or a user. Our rows are structurally different: a single `answer_change` event has context at three levels simultaneously — which survey, which group, which question. A generic `entity_id` cannot hold all three without losing information.
+
+| Built-in pattern | Our equivalent |
+|---|---|
+| `entity = 'question'` | implied — always a participant interaction |
+| `entity_id = 42` | `question_id = 42` |
+| `action = 'update'` | `event_type = 'answer_change'` |
+| — | `survey_id` (always present) |
+| — | `group_id` (navigation context) |
+| — | `old_value` / `new_value` (typed, not a blob) |
+
+Our `event_type` is our `action`. Our separate typed columns are strictly more queryable than a generic `entity_id`. The connection to `lime_auditlog_log` already exists through `question_id ↔ entity_id WHERE entity = 'question'` without mirroring their schema.
+
+---
 
 ### Rationale for flat columns instead of JSONB
 
@@ -481,14 +497,196 @@ docker exec -it more-studymanager-backend-lime-db-1 psql -U limesurvey -d limesu
 
 ---
 
-## 10. Open Questions (for after POC)
+## 10. How a Reviewer Verifies Changes Using the Audit Log
 
-| # | Question |
-|---|---------|
-| 1 | `newUserSession` hook behaviour needs to be verified against a live container — fallback is to recover the stored return URL on the next `beforeSurveyPage` call. |
-| 2 | For "update response" surveys (participant returns to amend answers), the JS old-value snapshot should be seeded from the DB — is this needed for the POC? |
-| 3 | GDPR: should `participant_email` / `participant_name` be stored, or just the token? Currently only the token is stored. |
-| 4 | Per-survey OAuth toggle (via `newSurveySettings`) as a follow-up to the POC. |
+### Who accesses this log and why
+
+Access to the audit log is triggered either by a legal/regulatory requirement (e.g. a GDPR data subject access request) or by an authorized user requesting to inspect their own data. In both cases, access is performed by a person with terminal access to the database — not through a UI. They query the audit log and provide the relevant rows as the output. The `participant_token` stored in our table is sufficient to identify the person: anyone with terminal access can look up the token in `lime_tokens_{surveyId}` to resolve it to a participant name, email, or other identifying fields. No PII needs to be stored in the audit log itself.
+
+A reviewer needs three sources: the survey structure reference, the participant interaction log (ours), and the admin change log (built-in). Together these give a complete, verifiable picture of what happened and whether the survey definition itself changed during data collection.
+
+---
+
+### Step 1 — Get the survey structure reference (qid map)
+
+The `question_id` in our audit log is the LimeSurvey internal numeric question ID (`qid`). It does not appear in the survey-taking UI but is the stable key for everything.
+
+**Option A — Export from LimeSurvey admin (no DB access needed)**
+
+In the LimeSurvey admin panel: Survey → Export → Survey structure (`.lss`). This is an XML file that includes every `qid`, question code (`title`), question text, and group for the survey version at export time. Archive this file alongside the data at the time data collection closes — it serves as the frozen reference for what each qid meant.
+
+**Option B — Query directly**
+
+```sql
+SELECT
+    q.qid,
+    q.title         AS question_code,
+    q.question      AS question_text,
+    g.group_name    AS section,
+    g.group_order,
+    q.question_order
+FROM lime_questions q
+JOIN lime_groups g ON g.gid = q.gid AND g.language = 'en'
+WHERE q.sid = 12345
+  AND q.language = 'en'
+ORDER BY g.group_order, q.question_order;
+```
+
+This is the live current state. If question codes were renamed after data collection, the `.lss` export from the right point in time is more accurate.
+
+**Resolving `sub_question_id`**
+
+For matrix and array questions, the HTML field name appends the sub-question's title string after the parent `qid` (e.g. `123456X7X42SQ001`). Sub-questions are stored in `lime_questions` with `parent_qid` set — they each have their own numeric `qid`. In the final version, the plugin looks up that numeric qid server-side and stores it as `sub_question_id` (the string suffix is variable and not logged). To resolve a `sub_question_id`:
+
+```sql
+SELECT qid, title AS sub_question_code, question AS sub_question_text
+FROM lime_questions
+WHERE parent_qid = 42   -- the parent question_id from the audit log row
+  AND language = 'en';
+```
+
+Sub-question definitions also appear in the `.lss` export and their changes are tracked in `lime_auditlog_log` (`entity = 'question'`, `entity_id = sub_question_id`) — exactly the same verification path as for parent questions.
+
+---
+
+### Step 2 — Pull participant interaction history from our audit log
+
+```sql
+SELECT
+    created_at,
+    event_type,
+    oauth_username,
+    participant_token,
+    page_number,
+    group_id,
+    question_id,
+    old_value,
+    new_value,
+    ip_address,
+    session_id
+FROM lime_user_audit_log
+WHERE survey_id        = 12345
+  AND participant_token = 'abc123'
+ORDER BY created_at;
+```
+
+Each `answer_change` row shows exactly one field-level change. The `question_id` resolves to a row in the qid map from Step 1.
+
+---
+
+### Step 3 — Check whether the survey definition changed after data collection
+
+The built-in `lime_auditlog_log` records every admin action on survey structure — including question renames, additions, and deletions. Its `entity_id` = `qid` when `entity = 'question'`. This means you can check: was any question that appears in our audit log changed after data collection started?
+
+```sql
+SELECT
+    al.created,
+    al.username,
+    al.action,
+    al.oldvalues,
+    al.newvalues
+FROM lime_auditlog_log al
+WHERE al.entity    = 'question'
+  AND al.entity_id IN (
+      SELECT DISTINCT question_id
+      FROM lime_user_audit_log
+      WHERE survey_id = 12345
+        AND question_id IS NOT NULL
+  )
+ORDER BY al.created;
+```
+
+If this returns rows, the reviewer knows that a question was changed during or after data collection, and can see exactly what changed and when — giving full context for any apparent discrepancy between the audit log and the current survey definition.
+
+---
+
+### Step 4 — Full verification join
+
+Combines our log with the current question definitions in one query:
+
+```sql
+SELECT
+    l.created_at,
+    l.event_type,
+    l.oauth_username,
+    l.participant_token,
+    g.group_name,
+    q.title     AS question_code,
+    q.question  AS question_text,
+    l.old_value,
+    l.new_value
+FROM lime_user_audit_log l
+LEFT JOIN lime_questions q ON q.qid = l.question_id AND q.language = 'en'
+LEFT JOIN lime_groups    g ON g.gid = l.group_id    AND g.language = 'en'
+WHERE l.survey_id = 12345
+ORDER BY l.participant_token, l.created_at;
+```
+
+Cross-reference the `question_code` values here against the `.lss` export from Step 1 to confirm the question definitions match at the time of data collection.
+
+---
+
+### Summary — what each source answers
+
+| Question | Source |
+|---|---|
+| What did qid 42 mean? | `.lss` export or `lime_questions` query |
+| What did sub_question_id 99 mean? | `.lss` export or `lime_questions WHERE parent_qid = 42` |
+| What did participant X enter, and when? | `lime_user_audit_log` (our table) |
+| Was the survey definition changed during data collection? | `lime_auditlog_log` (built-in, `entity = 'question'`) |
+| What did LimeSurvey ultimately save as the final answer? | `lime_survey_{surveyId}` (response table) |
+| Who is participant token `abc123`? | `lime_tokens_{surveyId}` |
+
+---
+
+### Current implementation gap — TODO for separate repo
+
+Right now:
+- `question_id` (INTEGER) is **never populated** — the AJAX request sends a misnamed `question_code` param that carries the numeric qid
+- `question_code` (VARCHAR) stores the numeric qid, not the string code — column name is misleading and the column should be **dropped from the schema**
+- `sub_question_code` (VARCHAR) stores the string suffix from the field name — should also become a numeric qid (`sub_question_id` INTEGER) for the same reason
+
+Fix required when the plugin moves to its own repo:
+
+1. **Schema:** rename `question_code` → remove it; rename `sub_question_code` → `sub_question_id INTEGER`
+2. **JS side:** send `question_id: parseInt(parsed.qid)` and `sub_question_code: parsed.sub` (the string suffix — PHP does the lookup)
+3. **PHP `logAnswerChange`:** look up both numeric qids server-side:
+   ```php
+   $qid    = (int) $request->getParam('question_id');
+   $subRaw = $request->getParam('sub_question_code'); // string suffix from field name
+   $subQid = null;
+   if ($subRaw) {
+       $sub = Question::model()->find(
+           'parent_qid = :p AND title = :t',
+           [':p' => $qid, ':t' => $subRaw]
+       );
+       $subQid = $sub ? (int)$sub->qid : null;
+   }
+   $this->writeLog([
+       ...
+       'question_id'    => $qid,
+       'sub_question_id' => $subQid,
+       ...
+   ]);
+   ```
+
+---
+
+## 11. Required sources for complete eCRF and GDPR coverage
+
+All three sources are required together — none alone is sufficient:
+
+| Source | Role |
+|---|---|
+| `.lss` export | Baseline snapshot of the survey structure (qids, question text, groups) at a fixed point in time — the frozen reference |
+| `lime_auditlog_log` (built-in) | Tracks every admin change to the survey structure after the baseline — renames, deletions, additions — keyed by `entity_id = qid` |
+| `lime_user_audit_log` (our table) | Tracks every participant interaction — field-level changes with old/new values, timestamps, and identity |
+
+Together: the `.lss` establishes what the survey looked like at study start; the built-in log records any structural changes after that; our log records what participants actually did. Cross-referencing all three gives a complete, tamper-evident audit trail for both eCRF review and GDPR data subject requests.
+
+**Prerequisite:** the built-in LimeSurvey AuditLog plugin must be active for the entire duration of the study. If it is off at any point, structural changes during that window are not recorded and the `.lss` export becomes the only fallback.
+
+**Open process question (SOP):** who is responsible for exporting and archiving the `.lss` file, and at what point in the study lifecycle — study start, survey activation, or data collection close? This needs to be defined outside the plugin.
 
 ---
 
