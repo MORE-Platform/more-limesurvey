@@ -10,11 +10,13 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/limesurvey
+  PLUGINS: ${{ vars.PLUGINS }}
 
 jobs:
   build-and-push-image:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
+    environment: P2R Deployment
     permissions:
       contents: read
       packages: write
@@ -48,3 +50,5 @@ jobs:
           push: ${{ steps.meta.outputs.tags != '' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            PLUGINS=${{ env.PLUGINS }}
