@@ -25,7 +25,7 @@ MORE Study-Manager to sign in to Limesurvey.
 
 The OAuth-plugin is shipped within this docker-image, but needs to be "loaded" before it can be
 enabled and configured.
-Go to `Configuration > Settings > Plugins`, press the `Scan files`-Button and select the
+Go to `Configuration > Settings > Plugins`, press the `Scan files`-Button, and select the
 `AuthOAuth2`-Plugin.
 
 Then continue with the configuration of the plugin:
@@ -48,7 +48,60 @@ it can be added as a global role for new users.
 Finally, enable the plugin in the Overview.
 
 **NOTE**: Even if you enable OAuth2 as the _default login_ mechanism, you can always switch to the default
-(local database) login by directly going to `${BASE_URL}/index.php/admin/authentication/sa/login/authMethod/Authdb`. 
+(local database) login by directly going to `${BASE_URL}/index.php/admin/authentication/sa/login/authMethod/Authdb`.
+
+--- 
+
+## User Roles and Permissions
+
+Permissions for roles and users can only be managed by the admin account or by a superadministrator.
+
+If a user needs additional permissions beyond their assigned role, grant those permissions directly to that individual user. Do not add extra permissions to a shared role unless every user with that role should receive the same access.
+
+To edit permissions, go to:
+
+`Configuration > Users > User roles > Select a user or role > Edit permissions`
+
+### MORE Survey Manager
+
+This is the default role for newly created users. It grants users the permissions they need to create and manage their own surveys and user groups.
+
+Required permissions:
+
+- Survey groups: `Create`
+- Surveys: `Create`
+- User groups: `Create`
+
+### Lime Administrator
+
+This role is intended for users who manage LimeSurvey at application level, but who should not have unrestricted access to server configuration, permissions, all survey data, or every user's surveys.
+
+It is **important** to keep this role restricted. Do not grant broad survey or survey group permissions unless the user should be able to access all surveys or all survey groups.
+
+Required permissions:
+
+- Central participant database: `All`
+- Label sets: `All`
+- Settings & Plugins: `All`
+- Survey groups: `Create` only, or leave blank. Do **not** grant broader permissions unless this user should access all survey groups.
+- Surveys: `Create` only, or leave blank. Do **not** grant broader permissions unless this user should access all surveys.
+- Themes: `All`
+- User groups: `All`
+- Users: `All`
+- Superadministrator: leave blank. Granting this permission gives the user unrestricted access to everything.
+- Use internal database authentication: `All`
+
+### Additional permissions for plugins
+
+Depending on which plugins are enabled, assign the following additional permissions to the relevant roles or users.
+
+If the OAuth2 plugin is enabled:
+
+- Use OAuth authentication: `All`
+
+If the AuthSurvey plugin is enabled:
+
+- Save plugin settings: `All` or `Update`
 
 ---
 
