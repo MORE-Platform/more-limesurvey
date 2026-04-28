@@ -174,6 +174,260 @@ _Example: Creating a participant in the participant table:_
 
 ---
 
+
+## UserAuditLog Plugin
+
+The **UserAuditLogPlugin** records a complete audit trail of participant interactions with LimeSurvey surveys. It logs page loads, answer changes, and survey submissions to the flat `lime_user_audit_log` table. This is intended for eCRF and GDPR compliance use cases and is compatible with LimeSurvey 6.x.
+
+The plugin is separate from LimeSurvey's built-in **Auditlog** plugin. For complete eCRF/GDPR traceability, use all three sources together:
+
+- the `.lss` survey structure export,
+- the built-in `lime_auditlog_log` table,
+- the `lime_user_audit_log` table created by this plugin.
+
+The plugin should be installed in this docker image by default. It still needs to be added to LimeSurvey via the plugin manager scan and then activated globally before it can be enabled for individual surveys.
+
+### Install and enable the UserAuditLog plugin
+
+1. The `UserAuditLogPlugin` folder should be already included in the docker image at:
+
+   ```text
+   limesurvey/plugins/UserAuditLogPlugin
+   ```
+
+2. Add the plugin to LimeSurvey by scanning the installed plugin files:
+
+   `Configuration > Settings > Plugins > Scan files`
+
+3. Select the **UserAuditLogPlugin** from the scan results and add it.
+
+4. Activate the plugin from the LimeSurvey admin interface:
+
+   `Configuration > Plugins > UserAuditLogPlugin > Activate`
+
+   Alternatively, activate it from the terminal:
+
+   ```bash
+   php application/commands/console.php plugin activate UserAuditLogPlugin
+   ```
+
+5. On first activation, the plugin automatically creates and migrates the `lime_user_audit_log` database table.
+
+### Build the distributable ZIP
+
+To build a ZIP file that can be uploaded through the LimeSurvey plugin manager, run:
+
+```bash
+bash scripts/build.sh
+```
+
+The resulting file is created at:
+
+```text
+dist/UserAuditLogPlugin.zip
+```
+
+### Enable audit logging for a specific survey
+
+The plugin is opt-in per survey. Activating it globally does not start logging automatically.
+
+For each survey that should be tracked:
+
+1. Open the survey in the LimeSurvey admin interface.
+2. Go to:
+
+   `Survey settings > Plugins > UserAuditLogPlugin`
+
+3. Set **Audit log for this survey** to **Activated**.
+4. Save the plugin settings.
+
+After this is enabled, the plugin writes participant interactions for that survey to `lime_user_audit_log`.
+
+### Interact with the UserAuditLog plugin
+
+#### Via the LimeSurvey admin UI
+
+The plugin provides a survey-specific datatable view. To browse and filter audit entries without leaving LimeSurvey, go to:
+
+```text
+Survey > Plugin actions > UserAuditLogPlugin
+```
+
+#### Via the database
+
+Read audit events from the `lime_user_audit_log` table. For example, to fetch all events for one survey:
+
+```sql
+SELECT * FROM lime_user_audit_log
+WHERE survey_id = 123456
+ORDER BY created_at ASC;
+```
+
+To fetch all events for one participant in one survey:
+
+```sql
+SELECT * FROM lime_user_audit_log
+WHERE survey_id = 123456
+  AND participant_token = 'abc123'
+ORDER BY created_at ASC;
+```
+
+To fetch only answer changes:
+
+```sql
+SELECT * FROM lime_user_audit_log
+WHERE survey_id = 123456
+  AND event_type = 'answer_change'
+ORDER BY created_at ASC;
+```
+
+To export a survey's audit log to CSV from the PostgreSQL CLI:
+
+```bash
+docker exec -it [Lime DB Docker Container] psql -U limesurvey -d limesurvey -c "COPY (SELECT * FROM lime_user_audit_log WHERE survey_id = 123456 ORDER BY created_at ASC) TO STDOUT WITH CSV HEADER" > audit_123456.csv
+```
+
+### Logged event types
+
+The plugin records the following event types:
+
+- `survey_open`
+- `page_load`
+- `answer_change`
+- `survey_submit`
+
+For `answer_change` events, the table stores field-level old and new values together with survey, participant, session, page, group, question, sub-question, column, ranking, and input type metadata.
+
+Text fields are logged when the user leaves the field, not for every keystroke.
+
+### Audit log table overview
+
+The main table created by the plugin is `lime_user_audit_log`.
+
+| Column              | Description                                                                   |
+|---------------------|-------------------------------------------------------------------------------|
+| `id`                | Row identity                                                                  |
+| `created_at`        | Timestamp of the event                                                        |
+| `survey_id`         | LimeSurvey survey ID                                                          |
+| `participant_token` | Survey access token; resolves to the participant via `lime_tokens_{surveyId}` |
+| `oauth_user_id`     | Authenticated user ID, or `NULL` for guests                                   |
+| `oauth_username`    | Authenticated username, or `NULL` for guests                                  |
+| `event_type`        | `survey_open`, `page_load`, `answer_change`, or `survey_submit`               |
+| `page_number`       | Current page or step index                                                    |
+| `group_id`          | LimeSurvey question group ID                                                  |
+| `question_id`       | Numeric LimeSurvey question ID                                                |
+| `sub_question_id`   | Numeric sub-question ID for matrix, array, or multi-field questions           |
+| `column_id`         | Numeric column question ID for supported array question types                 |
+| `rank_position`     | Ranking position for ranking questions                                        |
+| `input_type`        | Readable input category, such as `text-question/short-text` or `array/array`  |
+| `old_value`         | Value before the change                                                       |
+| `new_value`         | Value after the change                                                        |
+| `session_id`        | PHP session ID                                                                |
+| `ip_address`        | IP address, including IPv6 support                                            |
+
+### Question type representation
+
+For `answer_change` events, LimeSurvey question types are normalized into readable `input_type` values. Examples include:
+
+| LS Code | Description      | `input_type`                      |
+|---------|------------------|-----------------------------------|
+| `L`     | List radio       | `single-choice/list-radio`        |
+| `!`     | List dropdown    | `single-choice/list-dropdown`     |
+| `Y`     | Yes / No         | `mask-question/yes-no`            |
+| `M`     | Multiple choice  | `multiple-choice/multiple-choice` |
+| `S`     | Short text       | `text-question/short-text`        |
+| `T`     | Long text        | `text-question/long-text`         |
+| `D`     | Date / Time      | `mask-question/date-time`         |
+| `N`     | Numerical        | `mask-question/numerical`         |
+| `R`     | Ranking          | `mask-question/ranking`           |
+| `A`     | Array five-point | `array/five-point-choice`         |
+| `F`     | Generic array    | `array/array`                     |
+| `:`     | Array numbers    | `array/numbers`                   |
+| `;`     | Array text       | `array/text`                      |
+
+Display-only question types such as boilerplate and computed equation questions are not logged as answer changes.
+
+### Authentication and user identity
+
+UserAuditLogPlugin does not enforce authentication by itself. It logs the authenticated user if one is present and stores `NULL` identity values for guest access.
+
+For surveys that must only be completed by authenticated users, enable the **AuthSurvey** plugin for the same survey. When both plugins are active, audit log rows can include the authenticated user's `oauth_user_id` and `oauth_username`.
+
+### Documentation
+
+Additional plugin documentation is available in the plugin repository:
+
+- `docs/AuditLogSpecification.md` — schema design decisions, storage approach, and event types
+- `docs/AuditlogQuestionTypes.md` — how each LimeSurvey question type is represented in the audit log table
+- `docs/UserGuide.md` — how to activate the plugin, enable logging per survey, and access the audit log
+
+---
+
+## AuthSurvey Plugin
+
+The **AuthSurvey** plugin allows selected surveys to be displayed and submitted only by authenticated users. Each survey can have its own authentication policy, so the plugin can be enabled only for surveys that require access protection.
+
+### Install and enable the AuthSurvey plugin
+
+1. The `AuthSurvey` folder should be already included in the docker image at:
+
+   ```text
+   limesurvey/plugins/AuthSurvey
+   ```
+
+2. Add the plugin to LimeSurvey by scanning the installed plugin files:
+
+   `Configuration > Settings > Plugins > Scan files`
+
+3. Select the **AuthSurvey** plugin from the scan results and add it.
+
+4. Activate the **AuthSurvey** plugin from the plugin overview.
+
+   <img width="800" alt="Plugin manager with AuthSurvey enabled" src="doc/img/limesurvey-6/authsurvey-plugin/plugin_manager.png">
+
+5. Update the required user permissions. The plugin needs permission to save plugin settings. Go to:
+
+   `Configuration > Users > User roles > Select a user or role > Edit permissions`
+
+   Then enable:
+
+   ```text
+   Allow user to save plugin settings
+   ```
+   ```
+
+### Enable AuthSurvey for a specific survey
+
+AuthSurvey is configured per survey. To enable it for one survey:
+
+1. Go to:
+
+   `Surveys > Select desired survey > Simple plugins`
+
+   Alternatively, open the survey plugin settings directly:
+
+   ```text
+   ${BASE_URL}/index.php/admin/survey/sa/rendersidemenulink/surveyid/{survey_id}/subaction/plugins
+   ```
+
+2. Open the **Settings for plugin AuthSurvey** accordion.
+3. Enable the plugin by checking the **Enabled** checkbox.
+
+   <img width="800" alt="AuthSurvey plugin settings" src="doc/img/limesurvey-6/authsurvey-plugin/plugin_settings.png">
+
+### Interact with AuthSurvey
+
+After AuthSurvey is enabled for a survey, the survey can only be viewed and submitted by authenticated users according to that survey's plugin configuration.
+
+The survey-specific settings are managed from the survey plugin settings page:
+
+<img width="800" alt="AuthSurvey admin panel settings" src="doc/img/limesurvey-6/authsurvey-plugin/admin_panel.png">
+
+When an unauthenticated or unauthorized user tries to open or submit a protected survey, LimeSurvey displays an unauthorized access error instead of the survey:
+
+<img width="800" alt="AuthSurvey unauthorized user error" src="doc/img/limesurvey-6/authsurvey-plugin/unauthorized.png">
+
+---
 ## Set permissions for a single survey
 
 These permissions only apply for a single survey. If you want to set permissions for the whole system, you can use global permissions. These permissions can be offered either to a single user or to a user group.
