@@ -12,7 +12,7 @@ RUN apk add --no-cache git \
     && composer install --no-dev --optimize-autoloader \
     && rm -rf .git composer.json composer.lock /var/lib/apt/lists/*
 
-FROM alpine:3.20 AS plugin_zips
+FROM alpine:3.23 AS plugin_zips
 
 # Space-separated list of plugin specs in the format `<directory-name>@<zip-url>`.
 # Example:
