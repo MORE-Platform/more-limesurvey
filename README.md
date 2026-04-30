@@ -88,7 +88,7 @@ Required permissions:
 - Themes: `All`
 - User groups: `All`
 - Users: `All`
-- Superadministrator: leave blank. Granting this permission gives the user unrestricted access to everything.
+- Superadministrator: `Create` to manage user roles only.
 - Use internal database authentication: `All`
 
 ### Additional permissions for plugins
