@@ -61,4 +61,7 @@ USER root
 COPY --from=vendor --chown=33:33 /app/AuthOAuth2 /var/www/html/plugins/AuthOAuth2
 COPY --from=plugin_zips --chown=33:33 /out/ /var/www/html/plugins/
 
+# Fix KCFinder issue (PHP 8.1 compatibility and permissions)
+COPY kcfinder.conf /etc/apache2/conf-enabled/kcfinder.conf
+
 USER 33
