@@ -69,7 +69,7 @@ RUN set -eux; \
       echo '; LimeSurvey/eCRF tuning'; \
       echo '; Keep PHP sessions valid for 6 hours so long surveys are not garbage-collected too early.'; \
       echo 'session.gc_maxlifetime = 21600'; \
-      echo 'session.cookie_lifetime = 21600'; \
+      echo 'session.cookie_lifetime = 0'; \
       echo '; Allow large eCRF pages with many questions/subquestions without truncating submitted fields.'; \
       echo 'max_input_vars = 20000'; \
       echo 'max_input_nesting_level = 128'; \
