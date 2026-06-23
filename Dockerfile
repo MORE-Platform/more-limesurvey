@@ -71,7 +71,7 @@ RUN set -eux; \
       echo 'session.gc_maxlifetime = 21600'; \
       echo 'session.cookie_lifetime = 0'; \
       echo 'session.cookie_samesite = Lax'; \
-      echo 'session.cookie_secure = 1'; \
+      echo 'session.cookie_httponly = 1'; \
       echo '; Allow large eCRF pages with many questions/subquestions without truncating submitted fields.'; \
       echo 'max_input_vars = 20000'; \
       echo 'max_input_nesting_level = 128'; \
