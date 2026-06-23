@@ -63,5 +63,24 @@ COPY --from=plugin_zips --chown=33:33 /out/ /var/www/html/plugins/
 
 # Fix KCFinder issue (PHP 8.1 compatibility and permissions)
 COPY kcfinder.conf /etc/apache2/conf-enabled/kcfinder.conf
+# Tune PHP for long-running LimeSurvey/eCRF surveys with large forms and long sessions.
+RUN set -eux; \
+    { \
+      echo '; LimeSurvey/eCRF tuning'; \
+      echo '; Keep PHP sessions valid for 6 hours so long surveys are not garbage-collected too early.'; \
+      echo 'session.gc_maxlifetime = 21600'; \
+      echo 'session.cookie_lifetime = 21600'; \
+      echo '; Allow large eCRF pages with many questions/subquestions without truncating submitted fields.'; \
+      echo 'max_input_vars = 20000'; \
+      echo 'max_input_nesting_level = 128'; \
+      echo '; Allow larger survey payloads and file uploads.'; \
+      echo 'post_max_size = 128M'; \
+      echo 'upload_max_filesize = 128M'; \
+      echo '; Give long submit/save requests enough time to finish.'; \
+      echo 'max_execution_time = 21600'; \
+      echo 'max_input_time = 21600'; \
+      echo '; Give PHP enough memory for large survey pages and exports.'; \
+      echo 'memory_limit = 512M'; \
+    } > /usr/local/etc/php/conf.d/limesurvey-custom.ini
 
 USER 33
