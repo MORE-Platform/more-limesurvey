@@ -26,6 +26,12 @@ services:
       ADMIN_USER: ${ADMIN_USER}
       # Initial Password, will be changed on setup
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      # Store PHP sessions in the LimeSurvey `sessions` table instead of files in the
+      # container's /tmp. File sessions are destroyed on every restart/redeploy and are
+      # not shared across replicas, which drops in-flight survey sessions and causes
+      # responses to be saved against a rebuilt/foreign session. Any non-empty value
+      # enables this in the upstream entrypoint - do NOT set it to "0" to disable.
+      TABLE_SESSION: "1"
   database:
     image: postgres:14-alpine
     restart: unless-stopped

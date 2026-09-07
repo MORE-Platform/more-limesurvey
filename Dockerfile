@@ -85,4 +85,22 @@ RUN set -eux; \
       echo 'memory_limit = 512M'; \
     } > /usr/local/etc/php/conf.d/limesurvey-custom.ini
 
+# --- eCRF data-integrity hardening (incident 2026-08-28 / 2026-09-04) ---
+# 1) deletenonvalues: LimeSurvey's default (1) makes ExpressionManager NULL *already stored*
+#    answers in the DB for every question/group that evaluates as irrelevant during a save
+#    ("If not relevant, then always NULL it in the database", em_manager_helper.php).
+#    When a survey session is rebuilt or rebound to another response, relevance is evaluated
+#    against the wrong answer set and whole groups get silently wiped. Not acceptable for an eCRF.
+# 2) iSessionExpirationTime: with table sessions (TABLE_SESSION=1) LimeSurvey's
+#    DbHttpSession::getTimeout() reads this value, NOT php.ini session.gc_maxlifetime.
+#    Keep both at 21600s, otherwise survey sessions still expire after 2h.
+RUN set -eux; \
+    CFG=/var/www/html/application/config/config-defaults.php; \
+    sed -i "/^\$config\[.deletenonvalues.\]/c\\\$config['deletenonvalues'] = 0; // MORE: keep stored answers of irrelevant questions instead of NULLing them." "$CFG"; \
+    sed -i "/^\$config\[.iSessionExpirationTime.\]/c\\\$config['iSessionExpirationTime'] = 21600; // MORE: match php.ini session.gc_maxlifetime." "$CFG"; \
+    php -l "$CFG"; \
+    grep -qE "^.config\['deletenonvalues'\] = 0;" "$CFG"; \
+    grep -qE "^.config\['iSessionExpirationTime'\] = 21600;" "$CFG"; \
+    grep -nE "deletenonvalues|iSessionExpirationTime" "$CFG"
+
 USER 33
