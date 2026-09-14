@@ -103,4 +103,22 @@ RUN set -eux; \
     grep -qE "^.config\['iSessionExpirationTime'\] = 21600;" "$CFG"; \
     grep -nE "deletenonvalues|iSessionExpirationTime" "$CFG"
 
+# --- eCRF data-integrity hardening, part 2 (incident 2026-09-11) ---
+# newtest=Y runs killSurveySession() before anything else (SurveyIndex.php), dropping srid,
+# loaded answers, fieldmap, grouplist and step. LimeSurvey hands participants newtest=Y
+# restart URLs on "Access code mismatch", on session timeout, and silently (via redirect)
+# when a response looks finished; the participant-list "Launch the survey with this
+# participant" action carries it too, and staff keep those links bookmarked.
+# The patch honours newtest=Y only when the token has no response yet, so an in-progress
+# record can never be destroyed. `patch` is used rather than `sed` because this edits
+# control flow: the build must fail loudly if upstream moves this code.
+COPY patches/surveyindex-newtest-guard.patch /tmp/surveyindex-newtest-guard.patch
+RUN set -eux; \
+    cd /var/www/html; \
+    patch -p1 --batch --forward --fuzz=0 --no-backup-if-mismatch < /tmp/surveyindex-newtest-guard.patch; \
+    rm -f /tmp/surveyindex-newtest-guard.patch; \
+    php -l application/controllers/survey/SurveyIndex.php; \
+    grep -q "MORE 2026-09: never let newtest=Y destroy an in-progress eCRF record" \
+        application/controllers/survey/SurveyIndex.php
+
 USER 33

@@ -1,0 +1,38 @@
+--- a/application/controllers/survey/SurveyIndex.php
++++ b/application/controllers/survey/SurveyIndex.php
+@@ -43,8 +43,33 @@
+ 
+         /* Newtest must be done bedore all other action */
+         if (isset($param['newtest']) && $param['newtest'] == "Y") {
+-            killSurveySession($surveyid);
+-            resetQuestionTimers($surveyid);
++            /* MORE 2026-09: never let newtest=Y destroy an in-progress eCRF record.
++             *
++             * killSurveySession() drops srid, loaded answers, fieldmap, grouplist and step.
++             * LimeSurvey itself hands participants newtest=Y restart URLs on "Access code
++             * mismatch", on session timeout, and (silently, when tokenanswerspersistence=Y)
++             * when a response looks finished; the participant-list "Launch the survey with
++             * this participant" action carries it too. Staff copy those links and keep them.
++             *
++             * Honour newtest=Y only when there is nothing to lose: no token, or a token that
++             * has no response yet. Admin preview of an unused token is unaffected.
++             */
++            $moreToken = isset($param['token']) ? trim((string) $param['token']) : '';
++            $moreHasResponse = false;
++            if ($moreToken !== '' && $surveyid && tableExists("{{survey_{$surveyid}}}")) {
++                $moreHasResponse = (bool) Response::model($surveyid)
++                    ->countByAttributes(array('token' => $moreToken));
++            }
++            if ($moreHasResponse) {
++                Yii::log(
++                    "newtest=Y ignored for survey {$surveyid}: token already has a response",
++                    CLogger::LEVEL_WARNING,
++                    'application.MORE.newtestGuard'
++                );
++            } else {
++                killSurveySession($surveyid);
++                resetQuestionTimers($surveyid);
++            }
+         }
+ 
+         /* Get client token by POST or GET value */
