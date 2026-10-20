@@ -55,7 +55,7 @@ RUN apk add --no-cache curl unzip \
          done; \
        fi
 
-FROM docker.io/martialblog/limesurvey:6-apache
+FROM docker.io/martialblog/limesurvey:7-apache
 
 USER root
 COPY --from=vendor --chown=33:33 /app/AuthOAuth2 /var/www/html/plugins/AuthOAuth2
